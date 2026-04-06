@@ -15,9 +15,16 @@ builder.Services.AddSwaggerGen(c =>
 
 // SQLite — zero config, single file, perfect for this standalone service
 // For SQL Server swap with: builder.Services.AddDbContext<FaceDbContext>(o => o.UseSqlServer(...))
+//builder.Services.AddDbContext<FaceDbContext>(options =>
+//    options.UseSqlServer(builder.Configuration.GetConnectionString("DBConnection")));
+
 builder.Services.AddDbContext<FaceDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("FaceDb")
-        ?? "Data Source=faces.db"));
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DBConnection"),
+        sqlOptions => sqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(10),
+            errorNumbersToAdd: null)));
 
 // FaceRecognitionService is SINGLETON — ONNX models load once and stay in memory.
 // It uses IServiceScopeFactory internally to access the scoped DbContext safely.
@@ -31,11 +38,11 @@ builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
 var app = builder.Build();
 
 // Auto-create the SQLite DB on startup (no migrations needed for this standalone project)
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<FaceDbContext>();
-    db.Database.EnsureCreated();
-}
+//using (var scope = app.Services.CreateScope())
+//{
+//    var db = scope.ServiceProvider.GetRequiredService<FaceDbContext>();
+//    db.Database.Migrate();
+//}
 
 app.UseSwagger();
 app.UseSwaggerUI();

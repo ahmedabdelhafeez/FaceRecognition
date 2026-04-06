@@ -1,0 +1,12 @@
+services:
+  facerecognition:
+    build:
+      context: ./FaceRecognition
+      dockerfile: Dockerfile
+    ports:
+      - "5050:5050"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5050
+      - FaceRecognition__OnnxDirectory=/app/onnx
+      - ConnectionStrings__FaceDb=Server=db46864.public.databaseasp.net; Database=db46864; User Id=db46864; Password=Sk6@%9MjZ?m3; Encrypt=True; TrustServerCertificate=True; MultipleActiveResultSets=True;
