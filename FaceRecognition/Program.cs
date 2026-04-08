@@ -1,5 +1,6 @@
 using FaceRecognition.Data;
 using FaceRecognition.Services;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -20,11 +21,13 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddDbContext<FaceDbContext>(options =>
     options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DBConnection"),
-        sqlOptions => sqlOptions.EnableRetryOnFailure(
-            maxRetryCount: 5,
-            maxRetryDelay: TimeSpan.FromSeconds(10),
-            errorNumbersToAdd: null)));
+        builder.Configuration.GetConnectionString("FaceDb"),
+        sql => sql
+            .EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(10),
+                errorNumbersToAdd: null)
+            .CommandTimeout(30)));
 
 // FaceRecognitionService is SINGLETON — ONNX models load once and stay in memory.
 // It uses IServiceScopeFactory internally to access the scoped DbContext safely.
@@ -33,16 +36,21 @@ builder.Services.AddSingleton<FaceRecognitionService>();
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
     p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 
+
+// ✅ Fix for Microsoft.Data.SqlClient 5.x Linux registry NullReferenceException
+AppContext.SetSwitch("Switch.Microsoft.Data.SqlClient.DisableTNSNamesLookup", true);
+
+
 // ── App ───────────────────────────────────────────────────────────────────────
 
 var app = builder.Build();
 
 // Auto-create the SQLite DB on startup (no migrations needed for this standalone project)
-//using (var scope = app.Services.CreateScope())
-//{
-//    var db = scope.ServiceProvider.GetRequiredService<FaceDbContext>();
-//    db.Database.Migrate();
-//}
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<FaceDbContext>();
+    db.Database.EnsureCreated();
+}
 
 app.UseSwagger();
 app.UseSwaggerUI();
